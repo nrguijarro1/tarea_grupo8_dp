@@ -1,11 +1,11 @@
 export class IncidentModel {
-  constructor(dataUrl) {
-    this.dataUrl = dataUrl;
+  constructor(apiUrl = '/api/incidentes') {
+    this.apiUrl = apiUrl;
     this.incidents = [];
   }
 
   async loadIncidents() {
-    const response = await fetch(this.dataUrl);
+    const response = await fetch(this.apiUrl);
 
     if (!response.ok) {
       throw new Error(`No fue posible cargar los datos (${response.status}).`);
@@ -14,11 +14,35 @@ export class IncidentModel {
     const data = await response.json();
 
     if (!Array.isArray(data)) {
-      throw new TypeError('El archivo JSON no contiene una lista válida.');
+      throw new TypeError('La API no devolvió una lista válida.');
     }
 
     this.incidents = data.map((incident) => ({ ...incident }));
     return this.getIncidents();
+  }
+
+  async createIncident(data) {
+    const response = await fetch(this.apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+
+    let result;
+    try {
+      result = await response.json();
+    } catch {
+      result = null;
+    }
+
+    if (!response.ok) {
+      throw new Error(result?.error || `No fue posible registrar el incidente (${response.status}).`);
+    }
+
+    this.incidents.unshift({ ...result });
+    return { ...result };
   }
 
   getIncidents() {
@@ -28,18 +52,5 @@ export class IncidentModel {
   getIncidentById(id) {
     const incident = this.incidents.find((item) => item.id === Number(id));
     return incident ? { ...incident } : null;
-  }
-
-  addIncident(data) {
-    const nextId = this.incidents.reduce((max, item) => Math.max(max, item.id), 0) + 1;
-    const incident = {
-      id: nextId,
-      codigo: `INC-${String(nextId).padStart(3, '0')}`,
-      estado: 'Registrado',
-      ...data
-    };
-
-    this.incidents.unshift(incident);
-    return { ...incident };
   }
 }

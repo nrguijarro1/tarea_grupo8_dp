@@ -1,0 +1,50 @@
+[
+  {
+    "id": 4,
+    "codigo": "INC-004",
+    "tipo": "acceso-no-autorizado",
+    "tipoTexto": "Acceso no autorizado",
+    "fecha": "2026-09-17",
+    "prioridad": "alta",
+    "estado": "Registrado",
+    "responsable": "dcsdncjwsk",
+    "descripcion": "aacnsajkcnaskljcnadsjklcnadskj",
+    "evidencia": "Sin evidencia adjunta"
+  },
+  {
+    "id": 1,
+    "codigo": "INC-001",
+    "tipo": "acceso-no-autorizado",
+    "tipoTexto": "Acceso no autorizado",
+    "fecha": "",
+    "prioridad": "alta",
+    "estado": "En revisión",
+    "responsable": "No especificado",
+    "descripcion": "Se detectó un intento de acceso desde una IP no autorizada a un sistema administrativo.",
+    "evidencia": "Sin evidencia adjunta"
+  },
+  {
+    "id": 2,
+    "codigo": "INC-002",
+    "tipo": "phishing",
+    "tipoTexto": "Phishing",
+    "fecha": "",
+    "prioridad": "media",
+    "estado": "Registrado",
+    "responsable": "No especificado",
+    "descripcion": "Los usuarios recibieron correos con enlaces sospechosos dirigidos a credenciales institucionales.",
+    "evidencia": "Sin evidencia adjunta"
+  },
+  {
+    "id": 3,
+    "codigo": "INC-003",
+    "tipo": "fallo-disponibilidad",
+    "tipoTexto": "Fallo de disponibilidad",
+    "fecha": "",
+    "prioridad": "baja",
+    "estado": "Cerrado",
+    "responsable": "No especificado",
+    "descripcion": "Se reportó una interrupción leve de un servicio interno y fue solucionada por infraestructura.",
+    "evidencia": "Sin evidencia adjunta"
+  }
+]

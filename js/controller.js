@@ -39,6 +39,7 @@ export class IncidentController {
   constructor(model, view) {
     this.model = model;
     this.view = view;
+    this.isSubmitting = false;
   }
 
   async init() {
@@ -52,12 +53,12 @@ export class IncidentController {
       const incidents = await this.model.loadIncidents();
       this.view.renderIncidents(incidents);
       if (incidents[0]) this.view.renderDetail(incidents[0]);
-      this.view.announce(`${incidents.length} incidentes simulados cargados correctamente.`);
+      this.view.announce(`${incidents.length} incidentes cargados correctamente.`);
     } catch (error) {
       console.error('Error al cargar los incidentes:', error);
       this.view.renderIncidents([]);
-      this.view.showLoadError('No fue posible cargar los incidentes. Inicie el proyecto mediante un servidor local.');
-      this.view.announce('Error al cargar los incidentes simulados.');
+      this.view.showLoadError('No fue posible cargar los incidentes. Compruebe que el servidor Node.js esté iniciado.');
+      this.view.announce('Error al cargar los incidentes.');
     }
   }
 
@@ -74,8 +75,10 @@ export class IncidentController {
       .filter(({ message }) => message);
   }
 
-  handleSubmit(event) {
+  async handleSubmit(event) {
     event.preventDefault();
+    if (this.isSubmitting) return;
+
     const errors = this.validateForm();
     this.view.showErrorSummary(errors);
 
@@ -85,12 +88,21 @@ export class IncidentController {
       return;
     }
 
-    const incident = this.model.addIncident(this.view.getFormData());
-    this.view.renderIncidents(this.model.getIncidents());
-    this.view.renderDetail(incident);
-    this.view.resetForm();
-    this.view.announce(`${incident.codigo} registrado correctamente con prioridad ${incident.prioridad}.`);
-    document.getElementById('detalle').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    this.isSubmitting = true;
+    try {
+      const incident = await this.model.createIncident(this.view.getFormData());
+      this.view.renderIncidents(this.model.getIncidents());
+      this.view.renderDetail(incident);
+      this.view.resetForm();
+      this.view.announce(`${incident.codigo} registrado correctamente con prioridad ${incident.prioridad}.`);
+      document.getElementById('detalle').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (error) {
+      console.error('Error al registrar el incidente:', error);
+      this.view.showFormError(error.message || 'No fue posible registrar el incidente.');
+      this.view.announce('No fue posible registrar el incidente.');
+    } finally {
+      this.isSubmitting = false;
+    }
   }
 
   handleSelection(id) {

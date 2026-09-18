@@ -6,10 +6,17 @@ const priorityClasses = {
 
 const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
 
-const formatDate = (date) => new Intl.DateTimeFormat('es-EC', {
-  dateStyle: 'long',
-  timeZone: 'UTC'
-}).format(new Date(`${date}T00:00:00Z`));
+const formatDate = (date) => {
+  if (!date) return 'Fecha no especificada';
+
+  const parsedDate = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(parsedDate.getTime())) return 'Fecha no especificada';
+
+  return new Intl.DateTimeFormat('es-EC', {
+    dateStyle: 'long',
+    timeZone: 'UTC'
+  }).format(parsedDate);
+};
 
 const createElement = (tag, className, text) => {
   const element = document.createElement(tag);
@@ -167,6 +174,12 @@ export class IncidentView {
     const message = errors.length === 1
       ? 'Revise el campo señalado antes de continuar.'
       : `Revise los ${errors.length} campos señalados antes de continuar.`;
+    this.errorSummary.replaceChildren(createElement('p', '', message));
+    this.errorSummary.hidden = false;
+    this.errorSummary.focus();
+  }
+
+  showFormError(message) {
     this.errorSummary.replaceChildren(createElement('p', '', message));
     this.errorSummary.hidden = false;
     this.errorSummary.focus();

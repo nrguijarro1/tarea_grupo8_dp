@@ -113,6 +113,25 @@ h1, h2, h3, p { margin-top: 0; }
 
 .detail { grid-column: 1 / -1; }
 
+.operation-message {
+  grid-column: 1 / -1;
+  padding: 0.85rem 1rem;
+  margin: 0;
+  color: #14532d;
+  font-weight: 700;
+  background: var(--success-bg);
+  border: 1px solid #86efac;
+  border-left: 5px solid #16a34a;
+  border-radius: 7px;
+}
+
+.operation-message.error {
+  color: #7f1d1d;
+  background: var(--danger-bg);
+  border-color: #fca5a5;
+  border-left-color: var(--danger);
+}
+
 .section-heading {
   display: flex;
   align-items: start;
@@ -191,6 +210,64 @@ button {
 }
 
 button:hover { background: var(--primary-hover); }
+button:disabled { opacity: 0.65; cursor: wait; }
+
+.button-secondary {
+  color: var(--primary);
+  background: #fff;
+  border-color: var(--primary);
+}
+
+.button-secondary:hover { color: #fff; }
+
+.button-danger {
+  color: #fff;
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+.button-danger:hover { background: #991b1b; }
+
+.form-actions,
+.detail-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.1rem;
+}
+
+.form-actions button,
+.detail-actions button {
+  width: auto;
+  margin-top: 0;
+}
+
+.filters {
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.filters h3 { margin-bottom: 0; font-size: 1rem; }
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 0.75rem;
+}
+
+.button-compact {
+  width: auto;
+  padding: 0.5rem 0.75rem;
+  margin-top: 0.8rem;
+}
+
+.filter-summary {
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
 
 button:focus-visible,
 input:focus-visible,
@@ -282,6 +359,11 @@ a:focus-visible {
   border-top: 1px solid var(--border);
 }
 
+.detail-actions {
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
 aside {
   width: min(1100px, calc(100% - 2rem));
   padding: 1rem 1.5rem;
@@ -330,4 +412,9 @@ footer p { margin: 0; }
   .required-note { display: block; margin-top: 0.5rem; }
   .counter { margin-top: 0.5rem; }
   .detail-grid { grid-template-columns: 1fr; }
+  .filters-grid { grid-template-columns: 1fr; }
+  .form-actions,
+  .detail-actions { display: block; }
+  .form-actions button,
+  .detail-actions button { width: 100%; margin-top: 0.65rem; }
 }

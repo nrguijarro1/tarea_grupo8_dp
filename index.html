@@ -26,6 +26,8 @@
   </nav>
 
   <main id="contenido-principal" class="layout">
+    <p id="mensaje-operacion" class="operation-message" role="status" aria-live="polite" hidden></p>
+
     <section id="registro" class="card" aria-labelledby="titulo-registro">
       <div class="section-heading">
         <div>
@@ -72,6 +74,18 @@
           </div>
 
           <div class="field">
+            <label for="estado">Estado <span aria-hidden="true">*</span></label>
+            <select id="estado" name="estado" required aria-describedby="error-estado">
+              <option value="Registrado" selected>Registrado</option>
+              <option value="En revisión">En revisión</option>
+              <option value="En progreso">En progreso</option>
+              <option value="Resuelto">Resuelto</option>
+              <option value="Cerrado">Cerrado</option>
+            </select>
+            <small id="error-estado" class="field-error"></small>
+          </div>
+
+          <div class="field">
             <label for="responsable">Responsable del reporte</label>
             <input id="responsable" name="responsable" type="text" maxlength="80" autocomplete="name" aria-describedby="error-responsable">
             <small id="error-responsable" class="field-error"></small>
@@ -95,7 +109,10 @@
           </div>
         </fieldset>
 
-        <button type="submit">Registrar incidente</button>
+        <div class="form-actions">
+          <button id="boton-guardar" type="submit">Registrar incidente</button>
+          <button id="boton-cancelar-edicion" class="button-secondary" type="button" hidden>Cancelar edición</button>
+        </div>
       </form>
     </section>
 
@@ -107,6 +124,49 @@
         </div>
         <span id="total-incidentes" class="counter" aria-label="Cero incidentes">0</span>
       </div>
+
+      <form id="form-filtros" class="filters" aria-labelledby="titulo-filtros">
+        <h3 id="titulo-filtros">Filtrar incidentes</h3>
+        <div class="filters-grid">
+          <div class="field">
+            <label for="filtro-busqueda">Buscar</label>
+            <input id="filtro-busqueda" name="busqueda" type="search" placeholder="Código, descripción o responsable">
+          </div>
+          <div class="field">
+            <label for="filtro-tipo">Tipo</label>
+            <select id="filtro-tipo" name="tipo">
+              <option value="">Todos</option>
+              <option value="acceso-no-autorizado">Acceso no autorizado</option>
+              <option value="malware">Malware</option>
+              <option value="phishing">Phishing</option>
+              <option value="vulnerabilidad">Vulnerabilidad reportada</option>
+              <option value="fallo-disponibilidad">Fallo de disponibilidad</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="filtro-prioridad">Prioridad</label>
+            <select id="filtro-prioridad" name="prioridad">
+              <option value="">Todas</option>
+              <option value="alta">Alta</option>
+              <option value="media">Media</option>
+              <option value="baja">Baja</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="filtro-estado">Estado</label>
+            <select id="filtro-estado" name="estado">
+              <option value="">Todos</option>
+              <option value="Registrado">Registrado</option>
+              <option value="En revisión">En revisión</option>
+              <option value="En progreso">En progreso</option>
+              <option value="Resuelto">Resuelto</option>
+              <option value="Cerrado">Cerrado</option>
+            </select>
+          </div>
+        </div>
+        <button id="boton-limpiar-filtros" class="button-secondary button-compact" type="button">Limpiar filtros</button>
+        <p id="resumen-filtros" class="filter-summary" aria-live="polite"></p>
+      </form>
 
       <p id="estado-carga" class="loading-message">Cargando incidentes…</p>
       <div id="lista-incidentes"></div>

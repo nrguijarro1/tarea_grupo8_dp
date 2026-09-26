@@ -1,22 +1,37 @@
-const fs = require('fs/promises');
-
 class IncidenteRepository {
-  constructor(filePath) {
-    this.filePath = filePath;
-  }
-
-  async listar() {
-    const contenido = await fs.readFile(this.filePath, 'utf8');
-    const incidentes = JSON.parse(contenido);
-    if (!Array.isArray(incidentes)) {
-      throw new TypeError('El archivo de incidentes no contiene un arreglo JSON.');
+  constructor(incidentesIniciales = []) {
+    if (!Array.isArray(incidentesIniciales)) {
+      throw new TypeError('Los incidentes iniciales deben ser un arreglo.');
     }
-    return incidentes;
+    this.incidentes = incidentesIniciales.map((incidente) => ({ ...incidente }));
   }
 
-  async guardarTodos(incidentes) {
-    const contenido = `${JSON.stringify(incidentes, null, 2)}\n`;
-    await fs.writeFile(this.filePath, contenido, 'utf8');
+  listar() {
+    return this.incidentes.map((incidente) => ({ ...incidente }));
+  }
+
+  buscarPorId(id) {
+    const incidente = this.incidentes.find((item) => item.id === id);
+    return incidente ? { ...incidente } : null;
+  }
+
+  crear(incidente) {
+    this.incidentes.unshift({ ...incidente });
+    return { ...incidente };
+  }
+
+  actualizar(id, incidenteActualizado) {
+    const indice = this.incidentes.findIndex((item) => item.id === id);
+    if (indice === -1) return null;
+    this.incidentes[indice] = { ...incidenteActualizado };
+    return { ...this.incidentes[indice] };
+  }
+
+  eliminar(id) {
+    const indice = this.incidentes.findIndex((item) => item.id === id);
+    if (indice === -1) return false;
+    this.incidentes.splice(indice, 1);
+    return true;
   }
 }
 

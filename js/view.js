@@ -35,6 +35,13 @@ export class IncidentView {
     this.errorSummary = document.getElementById('resumen-errores');
     this.total = document.getElementById('total-incidentes');
     this.descriptionCounter = document.getElementById('contador-descripcion');
+    this.formTitle = document.getElementById('titulo-registro');
+    this.saveButton = document.getElementById('boton-guardar');
+    this.cancelEditButton = document.getElementById('boton-cancelar-edicion');
+    this.filterForm = document.getElementById('form-filtros');
+    this.clearFiltersButton = document.getElementById('boton-limpiar-filtros');
+    this.filterSummary = document.getElementById('resumen-filtros');
+    this.operationMessage = document.getElementById('mensaje-operacion');
     this.fields = [...this.form.elements].filter((element) => element.name);
   }
 
@@ -61,13 +68,37 @@ export class IncidentView {
     });
   }
 
+  bindDetailActions(handler) {
+    this.detail.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-detail-action]');
+      if (button) handler(button.dataset.detailAction, Number(button.dataset.incidentId));
+    });
+  }
+
+  bindFilters(handler) {
+    this.filterForm.addEventListener('input', handler);
+    this.filterForm.addEventListener('change', handler);
+    this.filterForm.addEventListener('submit', (event) => event.preventDefault());
+  }
+
+  bindClearFilters(handler) {
+    this.clearFiltersButton.addEventListener('click', () => {
+      this.filterForm.reset();
+      handler();
+    });
+  }
+
+  bindCancelEdit(handler) {
+    this.cancelEditButton.addEventListener('click', handler);
+  }
+
   bindDescriptionCounter() {
     this.form.elements.descripcion.addEventListener('input', (event) => {
       this.descriptionCounter.textContent = `${event.target.value.length}/600`;
     });
   }
 
-  getFormData() {
+  getFormData(evidenciaActual = 'Sin evidencia adjunta') {
     const values = new FormData(this.form);
     const typeSelect = this.form.elements.tipo;
     const file = this.form.elements.evidencia.files[0];
@@ -77,13 +108,24 @@ export class IncidentView {
       tipoTexto: typeSelect.options[typeSelect.selectedIndex].text,
       fecha: values.get('fecha'),
       prioridad: values.get('prioridad'),
+      estado: values.get('estado'),
       responsable: values.get('responsable').trim() || 'No especificado',
       descripcion: values.get('descripcion').trim(),
-      evidencia: file?.name || 'Sin evidencia adjunta'
+      evidencia: file?.name || evidenciaActual
     };
   }
 
-  renderIncidents(incidents) {
+  getFilters() {
+    const values = new FormData(this.filterForm);
+    return {
+      busqueda: String(values.get('busqueda') || '').trim().toLocaleLowerCase('es'),
+      tipo: String(values.get('tipo') || ''),
+      prioridad: String(values.get('prioridad') || ''),
+      estado: String(values.get('estado') || '')
+    };
+  }
+
+  renderIncidents(incidents, totalCount = incidents.length) {
     this.list.replaceChildren();
     this.loading.hidden = true;
 
@@ -97,8 +139,12 @@ export class IncidentView {
       this.list.append(fragment);
     }
 
-    this.total.textContent = incidents.length;
-    this.total.setAttribute('aria-label', `${incidents.length} incidentes`);
+    const hayFiltros = incidents.length !== totalCount;
+    this.total.textContent = hayFiltros ? `${incidents.length}/${totalCount}` : incidents.length;
+    this.total.setAttribute('aria-label', `${incidents.length} de ${totalCount} incidentes visibles`);
+    this.filterSummary.textContent = hayFiltros
+      ? `${incidents.length} de ${totalCount} incidentes coinciden con los filtros.`
+      : `${totalCount} incidentes registrados.`;
   }
 
   createIncidentCard(incident) {
@@ -155,7 +201,51 @@ export class IncidentView {
 
     const description = createElement('p', 'detail-description', incident.descripcion);
     const evidence = this.createEvidenceLink(incident.evidencia);
-    this.detail.append(title, dataList, description, evidence);
+    const actions = createElement('div', 'detail-actions');
+    const editButton = createElement('button', 'button-secondary', 'Editar incidente');
+    editButton.type = 'button';
+    editButton.dataset.detailAction = 'edit';
+    editButton.dataset.incidentId = incident.id;
+    const deleteButton = createElement('button', 'button-danger', 'Eliminar incidente');
+    deleteButton.type = 'button';
+    deleteButton.dataset.detailAction = 'delete';
+    deleteButton.dataset.incidentId = incident.id;
+    actions.append(editButton, deleteButton);
+    this.detail.append(title, dataList, description, evidence, actions);
+  }
+
+  clearDetail() {
+    this.detail.className = 'empty-state';
+    this.detail.replaceChildren(
+      createElement('p', '', 'Seleccione un incidente del listado para consultar toda su información.')
+    );
+  }
+
+  populateForm(incident) {
+    ['tipo', 'fecha', 'prioridad', 'estado', 'responsable', 'descripcion'].forEach((field) => {
+      this.form.elements[field].value = incident[field] === 'No especificado'
+        ? ''
+        : incident[field];
+    });
+    this.form.elements.evidencia.value = '';
+    this.descriptionCounter.textContent = `${incident.descripcion.length}/600`;
+    this.fields.forEach((field) => this.showFieldError(field, ''));
+    this.showErrorSummary([]);
+  }
+
+  setEditMode(isEditing, codigo = '') {
+    this.formTitle.textContent = isEditing ? `Editar ${codigo}` : 'Registrar incidente';
+    this.saveButton.textContent = isEditing ? 'Guardar cambios' : 'Registrar incidente';
+    this.cancelEditButton.hidden = !isEditing;
+  }
+
+  setSubmitting(isSubmitting, isEditing) {
+    this.saveButton.disabled = isSubmitting;
+    if (isSubmitting) {
+      this.saveButton.textContent = isEditing ? 'Guardando cambios…' : 'Registrando…';
+    } else {
+      this.saveButton.textContent = isEditing ? 'Guardar cambios' : 'Registrar incidente';
+    }
   }
 
   showFieldError(field, message) {
@@ -200,6 +290,12 @@ export class IncidentView {
     window.requestAnimationFrame(() => {
       this.liveRegion.textContent = message;
     });
+  }
+
+  showOperationMessage(message, type = 'success') {
+    this.operationMessage.textContent = message;
+    this.operationMessage.classList.toggle('error', type === 'error');
+    this.operationMessage.hidden = false;
   }
 
   resetForm() {

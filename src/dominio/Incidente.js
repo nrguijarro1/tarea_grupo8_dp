@@ -2,17 +2,13 @@ const TIPOS = {
   'acceso-no-autorizado': 'Acceso no autorizado',
   malware: 'Malware',
   phishing: 'Phishing',
-  vulnerabilidad: 'Vulnerabilidad reportada'
+  vulnerabilidad: 'Vulnerabilidad reportada',
+  'fallo-disponibilidad': 'Fallo de disponibilidad'
 };
 
 const PRIORIDADES = new Set(['alta', 'media', 'baja']);
-
-class ErrorValidacion extends Error {
-  constructor(mensaje) {
-    super(mensaje);
-    this.name = 'ErrorValidacion';
-  }
-}
+const ESTADOS = new Set(['Registrado', 'En revisión', 'En progreso', 'Resuelto', 'Cerrado']);
+const { ErrorValidacion } = require('./Errores');
 
 function texto(valor) {
   return typeof valor === 'string' ? valor.trim() : '';
@@ -31,7 +27,7 @@ function fechaActualISO() {
   return new Date(ahora.getTime() - desfase).toISOString().slice(0, 10);
 }
 
-function crearIncidente(datos, { id, codigo }) {
+function validarDatos(datos, { estadoPredeterminado = false } = {}) {
   if (!datos || typeof datos !== 'object' || Array.isArray(datos)) {
     throw new ErrorValidacion('Datos incompletos');
   }
@@ -39,9 +35,10 @@ function crearIncidente(datos, { id, codigo }) {
   const tipo = texto(datos.tipo);
   const fecha = texto(datos.fecha);
   const prioridad = texto(datos.prioridad).toLowerCase();
+  const estado = texto(datos.estado) || (estadoPredeterminado ? 'Registrado' : '');
   const descripcion = texto(datos.descripcion);
 
-  if (!tipo || !fecha || !prioridad || !descripcion) {
+  if (!tipo || !fecha || !prioridad || !estado || !descripcion) {
     throw new ErrorValidacion('Datos incompletos');
   }
   if (!Object.hasOwn(TIPOS, tipo)) {
@@ -56,8 +53,16 @@ function crearIncidente(datos, { id, codigo }) {
   if (!PRIORIDADES.has(prioridad)) {
     throw new ErrorValidacion('Seleccione una prioridad válida.');
   }
+  if (!ESTADOS.has(estado)) {
+    throw new ErrorValidacion('Seleccione un estado válido.');
+  }
 
   const responsableRecibido = texto(datos.responsable);
+  if (Object.hasOwn(datos, 'responsable')
+    && datos.responsable !== null
+    && typeof datos.responsable !== 'string') {
+    throw new ErrorValidacion('El responsable debe ser un texto válido.');
+  }
   if (responsableRecibido && responsableRecibido.length < 3) {
     throw new ErrorValidacion('El responsable debe tener al menos 3 caracteres.');
   }
@@ -69,19 +74,67 @@ function crearIncidente(datos, { id, codigo }) {
   }
 
   const evidenciaRecibida = texto(datos.evidencia);
+  if (evidenciaRecibida.length > 200) {
+    throw new ErrorValidacion('El nombre de la evidencia no puede superar 200 caracteres.');
+  }
 
   return {
-    id,
-    codigo,
     tipo,
     tipoTexto: TIPOS[tipo],
     fecha,
     prioridad,
-    estado: 'Registrado',
+    estado,
     responsable: responsableRecibido || 'No especificado',
     descripcion,
     evidencia: evidenciaRecibida || 'Sin evidencia adjunta'
   };
 }
 
-module.exports = { crearIncidente, ErrorValidacion };
+function crearIncidente(datos, { id, codigo }) {
+  return {
+    id,
+    codigo,
+    ...validarDatos(datos, { estadoPredeterminado: true })
+  };
+}
+
+function actualizarIncidente(incidenteActual, datos, { parcial = false } = {}) {
+  if (!datos || typeof datos !== 'object' || Array.isArray(datos)) {
+    throw new ErrorValidacion('Datos incompletos');
+  }
+
+  const camposEditables = [
+    'tipo',
+    'fecha',
+    'prioridad',
+    'estado',
+    'responsable',
+    'descripcion',
+    'evidencia'
+  ];
+
+  if (parcial && !camposEditables.some((campo) => Object.hasOwn(datos, campo))) {
+    throw new ErrorValidacion('Proporcione al menos un campo editable.');
+  }
+
+  const datosCompletos = parcial
+    ? camposEditables.reduce((resultado, campo) => {
+      if (Object.hasOwn(datos, campo)) resultado[campo] = datos[campo];
+      return resultado;
+    }, { ...incidenteActual })
+    : datos;
+
+  return {
+    id: incidenteActual.id,
+    codigo: incidenteActual.codigo,
+    ...validarDatos(datosCompletos)
+  };
+}
+
+module.exports = {
+  TIPOS,
+  PRIORIDADES,
+  ESTADOS,
+  crearIncidente,
+  actualizarIncidente
+};

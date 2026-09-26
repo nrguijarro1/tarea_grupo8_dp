@@ -5,13 +5,7 @@ export class IncidentModel {
   }
 
   async loadIncidents() {
-    const response = await fetch(this.apiUrl);
-
-    if (!response.ok) {
-      throw new Error(`No fue posible cargar los datos (${response.status}).`);
-    }
-
-    const data = await response.json();
+    const data = await this.request(this.apiUrl);
 
     if (!Array.isArray(data)) {
       throw new TypeError('La API no devolvió una lista válida.');
@@ -22,27 +16,49 @@ export class IncidentModel {
   }
 
   async createIncident(data) {
-    const response = await fetch(this.apiUrl, {
+    const result = await this.request(this.apiUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
 
-    let result;
-    try {
-      result = await response.json();
-    } catch {
-      result = null;
+    this.incidents.unshift({ ...result });
+    return { ...result };
+  }
+
+  async updateIncident(id, data, partial = false) {
+    const result = await this.request(`${this.apiUrl}/${id}`, {
+      method: partial ? 'PATCH' : 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const index = this.incidents.findIndex((incident) => incident.id === Number(id));
+    if (index !== -1) this.incidents[index] = { ...result };
+    return { ...result };
+  }
+
+  async deleteIncident(id) {
+    await this.request(`${this.apiUrl}/${id}`, { method: 'DELETE' });
+    this.incidents = this.incidents.filter((incident) => incident.id !== Number(id));
+  }
+
+  async request(url, options = {}) {
+    const response = await fetch(url, options);
+    let result = null;
+
+    if (response.status !== 204) {
+      try {
+        result = await response.json();
+      } catch {
+        result = null;
+      }
     }
 
     if (!response.ok) {
-      throw new Error(result?.error || `No fue posible registrar el incidente (${response.status}).`);
+      throw new Error(result?.error || `La solicitud no pudo completarse (${response.status}).`);
     }
 
-    this.incidents.unshift({ ...result });
-    return { ...result };
+    return result;
   }
 
   getIncidents() {

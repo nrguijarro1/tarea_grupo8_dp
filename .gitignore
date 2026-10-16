@@ -1,4 +1,5 @@
 node_modules/
+quality/coverage/
 npm-debug.log*
 
 # Configuración local y secretos

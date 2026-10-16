@@ -125,13 +125,18 @@ export class IncidentModel {
 
     formData.append('archivo', file);
 
-    return this.request(
+    const result = await this.request(
       `${this.apiUrl}/${id}/evidencia`,
       {
         method: 'POST',
         body: formData
       }
     );
+    const incident = this.incidents.find((item) => item.id === Number(id));
+    if (incident && result?.evidencia?.nombre_original) {
+      incident.evidencia = result.evidencia.nombre_original;
+    }
+    return result;
   }
 
   async getEvidenceAccess(id) {

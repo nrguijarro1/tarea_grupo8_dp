@@ -43,10 +43,85 @@ export class IncidentView {
     this.filterSummary = document.getElementById('resumen-filtros');
     this.operationMessage = document.getElementById('mensaje-operacion');
     this.fields = [...this.form.elements].filter((element) => element.name);
+    this.role = null;
   }
 
   setMaximumDate(date) {
     this.form.elements.fecha.max = date;
+  }
+
+  setSession(user) {
+    this.role = user?.rol || null;
+    document.getElementById('pantalla-login').hidden = Boolean(user);
+    document.getElementById('aplicacion').hidden = !user;
+    document.getElementById('nombre-usuario').textContent = user?.nombre || '—';
+    document.getElementById('rol-usuario').textContent = user?.rol || '—';
+    const canWrite = ['administrador', 'analista'].includes(this.role);
+    document.getElementById('registro').hidden = !canWrite;
+    document.querySelector('.site-nav a[href="#registro"]').hidden = !canWrite;
+    document.getElementById('panel-usuarios').hidden = this.role !== 'administrador';
+    document.getElementById('nav-usuarios').hidden = this.role !== 'administrador';
+    document.getElementById('enlace-saltar').href = user ? '#contenido-principal' : '#pantalla-login';
+    this.clearDetail();
+    this.renderIncidents([], 0);
+    this.resetForm();
+    this.setEditMode(false);
+    this.filterForm.reset();
+    this.operationMessage.hidden = true;
+    document.getElementById('form-usuario').reset();
+    document.getElementById('mensaje-usuarios').hidden = true;
+    document.getElementById('estado-usuarios').textContent = '';
+    document.getElementById('lista-usuarios').replaceChildren();
+    this.liveRegion.textContent = '';
+  }
+
+  showLoginMessage(message = '') {
+    const element = document.getElementById('mensaje-login');
+    element.textContent = message;
+    element.hidden = !message;
+  }
+
+  showUserMessage(message, error = false) {
+    const element = document.getElementById('mensaje-usuarios');
+    element.textContent = message;
+    element.classList.toggle('error', error);
+    element.hidden = false;
+  }
+
+  renderUsers(users) {
+    const table = createElement('table');
+    table.append(createElement('caption', 'sr-only', 'Usuarios registrados'));
+    const head = createElement('thead');
+    const header = createElement('tr');
+    ['Nombre', 'Correo', 'Rol', 'Estado'].forEach((label) => {
+      const cell = createElement('th', '', label);
+      cell.scope = 'col';
+      header.append(cell);
+    });
+    head.append(header);
+    const body = createElement('tbody');
+    users.forEach((user) => {
+      const row = createElement('tr');
+      [user.nombre, user.email, user.rol, user.activo ? 'Activo' : 'Inactivo']
+        .forEach((value) => row.append(createElement('td', '', value)));
+      body.append(row);
+    });
+    table.append(head, body);
+    document.getElementById('lista-usuarios').replaceChildren(table);
+    document.getElementById('estado-usuarios').textContent = `${users.length} usuarios registrados.`;
+  }
+
+  showEvidenceAccess(id, evidence) {
+    const paragraph = this.detail.querySelector('[data-evidence-id]');
+    if (!paragraph || Number(paragraph.dataset.evidenceId) !== id) return;
+    const url = new URL(evidence.url);
+    const localHttp = url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname);
+    if (url.protocol !== 'https:' && !localHttp) throw new Error('La URL de evidencia no es segura.');
+    const link = createElement('a', '', `Abrir ${evidence.nombre}`);
+    link.href = url.href;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    paragraph.replaceChildren(link, createElement('small', '', ' Enlace temporal: 10 minutos.'));
   }
 
   bindSubmit(handler) {
@@ -98,20 +173,16 @@ export class IncidentView {
     });
   }
 
-  getFormData(evidenciaActual = 'Sin evidencia adjunta') {
+  getFormData() {
     const values = new FormData(this.form);
-    const typeSelect = this.form.elements.tipo;
-    const file = this.form.elements.evidencia.files[0];
 
     return {
       tipo: values.get('tipo'),
-      tipoTexto: typeSelect.options[typeSelect.selectedIndex].text,
       fecha: values.get('fecha'),
       prioridad: values.get('prioridad'),
       estado: values.get('estado'),
-      responsable: values.get('responsable').trim() || 'No especificado',
-      descripcion: values.get('descripcion').trim(),
-      evidencia: file?.name || evidenciaActual
+      responsable: values.get('responsable').trim() || null,
+      descripcion: values.get('descripcion').trim()
     };
   }
 
@@ -162,9 +233,9 @@ export class IncidentView {
     return article;
   }
 
-  createEvidenceLink(fileName) {
+  createEvidenceLink(fileName, id) {
     const paragraph = createElement('p', '', 'Evidencia: ');
-    const link = document.createElement('a');
+    paragraph.dataset.evidenceId = id;
     const safeName = String(fileName).trim();
 
     if (!safeName || safeName === 'Sin evidencia adjunta') {
@@ -172,11 +243,11 @@ export class IncidentView {
       return paragraph;
     }
 
-    link.href = `/assets/${encodeURIComponent(safeName)}`;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.textContent = safeName;
-    paragraph.append(link);
+    const button = createElement('button', 'button-secondary', safeName);
+    button.type = 'button';
+    button.dataset.detailAction = 'evidence';
+    button.dataset.incidentId = id;
+    paragraph.append(button);
     return paragraph;
   }
 
@@ -200,7 +271,7 @@ export class IncidentView {
     });
 
     const description = createElement('p', 'detail-description', incident.descripcion);
-    const evidence = this.createEvidenceLink(incident.evidencia);
+    const evidence = this.createEvidenceLink(incident.evidencia, incident.id);
     const actions = createElement('div', 'detail-actions');
     const editButton = createElement('button', 'button-secondary', 'Editar incidente');
     editButton.type = 'button';
@@ -210,7 +281,15 @@ export class IncidentView {
     deleteButton.type = 'button';
     deleteButton.dataset.detailAction = 'delete';
     deleteButton.dataset.incidentId = incident.id;
-    actions.append(editButton, deleteButton);
+    if (['administrador', 'analista'].includes(this.role)) actions.append(editButton);
+    if (this.role === 'administrador') actions.append(deleteButton);
+    if (this.role === 'administrador' && incident.evidencia !== 'Sin evidencia adjunta') {
+      const removeEvidence = createElement('button', 'button-danger', 'Eliminar evidencia');
+      removeEvidence.type = 'button';
+      removeEvidence.dataset.detailAction = 'delete-evidence';
+      removeEvidence.dataset.incidentId = incident.id;
+      actions.append(removeEvidence);
+    }
     this.detail.append(title, dataList, description, evidence, actions);
   }
 

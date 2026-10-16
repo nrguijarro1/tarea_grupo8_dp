@@ -1,5 +1,7 @@
+from datetime import datetime, timezone
+
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from supabase import Client
 from app.config import get_supabase
 
@@ -36,7 +38,8 @@ class IncidenteRepository:
         prioridad: str | None = None,
     ) -> list[Incidente]:
 
-        stmt = select(Incidente)
+        # La lista siempre presenta la evidencia: una unión evita otra ida a PostgreSQL.
+        stmt = select(Incidente).options(joinedload(Incidente.evidencia))
 
         if estado:
             stmt = stmt.where(
@@ -112,6 +115,8 @@ class IncidenteRepository:
                         campo,
                         valor,
                     )
+
+            incidente.updated_at = datetime.now(timezone.utc)
 
             self.db.commit()
             self.db.refresh(incidente)

@@ -147,29 +147,10 @@ class IncidenteService:
             )
         )
 
-        ids = [
-            int(incidente.id)
-            for incidente in incidentes
-        ]
-
-        evidencias = (
-            self.repository
-            .listar_evidencias(ids)
-        )
-
-        evidencia_por_incidente = {
-            int(evidencia.incidente_id):
-                evidencia
-
-            for evidencia in evidencias
-        }
-
         return [
             self.presentar(
                 incidente,
-                evidencia_por_incidente.get(
-                    int(incidente.id)
-                ),
+                incidente.evidencia,
             )
 
             for incidente in incidentes

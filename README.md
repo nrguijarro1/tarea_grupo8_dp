@@ -1,67 +1,146 @@
 # Gestión de incidentes de ciberseguridad
 
-Aplicación web académica para registrar, consultar, filtrar, editar y eliminar incidentes de ciberseguridad. El servidor Express entrega la interfaz y una API REST desde el mismo origen.
+Aplicación académica con HTML, CSS y JavaScript modular, API FastAPI, PostgreSQL
+mediante SQLAlchemy y archivos en Supabase Storage. FastAPI entrega la interfaz
+y la API desde el mismo origen.
 
-## Tecnologías
+## Preparación en Windows
 
-- Node.js 18 o posterior
-- Express 5
-- HTML5, CSS3 y JavaScript modular
-- Fetch API
-- Módulo de pruebas nativo `node:test`
+Desde la raíz del proyecto, con Python compatible con las dependencias:
 
-## Estructura
-
-```text
-Tarea/
-├── css/                         Estilos de la interfaz
-├── data/incidentes.json         Datos iniciales opcionales
-├── js/                          Modelo, vista y controlador del navegador
-├── src/
-│   ├── aplicacion/              Casos de uso del CRUD
-│   ├── dominio/                 Entidad, reglas y errores del dominio
-│   ├── infraestructura/         Repositorio en memoria
-│   └── presentacion/            Controladores, rutas y middleware Express
-├── test/api.test.js             Pruebas automatizadas de la API
-├── index.html                   Interfaz principal
-└── server.js                    Punto de entrada
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
 ```
 
-Al iniciar, el repositorio carga una copia de `data/incidentes.json` como semilla. Si el archivo no está disponible, utiliza datos de ejemplo incluidos en el servidor. Todas las operaciones CRUD posteriores se realizan en memoria y se reinician al detener el proceso.
+Si todavía no existe `backend/.env`, copiar `backend/.env.example` a ese nombre.
+Completar las variables de PostgreSQL y generar una clave JWT aleatoria:
 
-## Instalación y ejecución
-
-Desde la carpeta `Tarea`:
-
-```bash
-npm install
-npm start
+```powershell
+python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-Abra <http://localhost:3000>. No se necesita Live Server.
+Guardar el valor únicamente como `JWT_SECRET_KEY` en el archivo local. Se requieren
+al menos 32 bytes y la aplicación comprueba esta configuración al iniciar.
+`.gitignore` excluye archivos de secretos, entornos virtuales y cachés.
 
-El puerto predeterminado es `3000`; puede cambiarse mediante la variable de entorno `PORT`.
+En una base administrada por las migraciones del proyecto:
 
-## API REST
+```powershell
+.\.venv\Scripts\python.exe -m alembic -c backend/alembic.ini upgrade head
+.\.venv\Scripts\python.exe backend/crear_admin.py
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir backend --reload --host 127.0.0.1 --port 8000
+```
 
-Todas las respuestas de la API son JSON, salvo la eliminación correcta, que responde sin cuerpo.
+El script de cuentas permite elegir el rol. Crear primero un administrador y
+después registrar las demás cuentas desde su panel en la aplicación.
+Si las tablas se crearon manualmente, revisar su correspondencia con las
+migraciones antes de aplicarlas; no borrar ni marcar versiones automáticamente.
 
-| Método | Ruta | Descripción |
+Abrir <http://127.0.0.1:8000>. La interfaz utiliza rutas relativas y debe abrirse
+desde FastAPI; Live Server no proporciona la API. La documentación interactiva
+está en <http://127.0.0.1:8000/docs> y acepta el token mediante el botón Authorize.
+
+Para archivos, configurar `SUPABASE_URL` y `SUPABASE_KEY` en el servidor y crear
+el bucket privado `evidencias`. El CRUD sin archivos solo necesita PostgreSQL.
+Nunca colocar claves de Supabase en JavaScript.
+
+## Organización
+
+- `index.html`, `css/`, `js/`: interfaz y separación modelo, vista y controlador.
+- `backend/app/routes/`: autenticación, cuentas, incidentes y evidencias.
+- `backend/app/dependencies.py`: verificación del usuario activo y los roles.
+- `backend/app/security.py`: hash PBKDF2-HMAC-SHA256 y JWT.
+- `backend/app/schemas/`, `validation.py`: validación y normalización.
+- `backend/app/services/`, `repositories/`, `models/`: reglas, persistencia y tablas.
+- `backend/alembic/`: esquema de incidentes, evidencias y usuarios.
+
+## Seguridad y permisos
+
+Las contraseñas se almacenan con salt aleatorio y PBKDF2 de 600 000 iteraciones.
+El JWT usa HS256, emisor fijo, firma y campos obligatorios; vence a los 30 minutos.
+El rol se consulta en la base de datos, no se toma de información editable del cliente.
+
+| Operación | Lector | Analista | Administrador |
+|---|---|---|---|
+| Consultar incidentes y acceder a evidencias | Sí | Sí | Sí |
+| Crear, actualizar y subir evidencias | No | Sí | Sí |
+| Eliminar incidentes o evidencias | No | No | Sí |
+| Listar o crear cuentas | No | No | Sí |
+
+`POST /api/auth/login` y `GET /api/salud` son públicos.
+`GET /api/auth/me`, las cuentas y todos los endpoints de incidentes requieren
+`Authorization: Bearer <token>`. No se devuelve el hash de contraseña.
+
+El navegador mantiene el token únicamente en memoria, comprueba `/api/auth/me`,
+envía el encabezado en las solicitudes y borra la sesión al cerrar, recargar,
+vencer o recibir un 401. No persiste credenciales en localStorage.
+La interfaz adapta las acciones al rol; la API comprueba los permisos incluso
+si alguien modifica el HTML. El cierre cancela peticiones y limpia los datos visibles.
+
+Las entradas admiten categorías y estados conocidos, fechas no futuras,
+descripciones de 30 a 600 caracteres y responsables de 3 a 80 caracteres o vacíos.
+Se normaliza Unicode y se rechazan controles no permitidos, campos desconocidos,
+parches vacíos y nulos en campos obligatorios. La descripción permite saltos de
+línea y tabulación. Las contraseñas no se recortan ni se normalizan.
+SQLAlchemy utiliza parámetros y la vista inserta texto mediante `textContent`.
+
+Los archivos se envían mediante multipart, con máximo de 5 MiB, extensión,
+MIME y firma inicial coherentes. El servidor genera un nombre de almacenamiento
+con UUID y obtiene enlaces firmados de diez minutos. Si falla la subida después
+de guardar el incidente, el cliente conserva la edición del mismo registro para
+reintentar sin duplicarlo. Los fallos de limpieza de Storage se registran.
+
+## API y errores
+
+| Método | Ruta | Uso |
 |---|---|---|
-| GET | `/api/salud` | Consultar el estado de la API |
-| GET | `/api/incidentes` | Listar todos los incidentes |
-| GET | `/api/incidentes/:id` | Obtener un incidente por ID |
-| POST | `/api/incidentes` | Crear un incidente |
-| PUT | `/api/incidentes/:id` | Reemplazar los datos editables |
-| PATCH | `/api/incidentes/:id` | Actualizar parcialmente un incidente |
-| DELETE | `/api/incidentes/:id` | Eliminar un incidente |
+| POST | `/api/auth/login` | Iniciar sesión |
+| GET | `/api/auth/me` | Perfil autenticado |
+| GET / POST | `/api/auth/usuarios` | Listar / crear cuentas |
+| GET / POST | `/api/incidentes` | Listar / crear incidentes |
+| GET / PUT / PATCH / DELETE | `/api/incidentes/{id}` | Consultar / reemplazar / actualizar / eliminar |
+| POST / DELETE | `/api/incidentes/{id}/evidencia` | Subir / eliminar archivo |
+| GET | `/api/incidentes/{id}/evidencia/acceso` | Obtener URL temporal |
 
-Los errores usan el formato `{ "error": "Mensaje explicativo", "status": 400 }`. La API valida tipo, fecha, prioridad, estado, responsable, descripción y evidencia antes de modificar el repositorio.
+La lista admite filtros `estado` y `prioridad`.
+Los errores de la API usan `{"error": "mensaje"}`; datos inválidos responden 400,
+acceso sin autenticación válida 401, permisos insuficientes 403, recurso inexistente
+404, correo duplicado 409 y carga que excede el límite de lectura 413.
+Crear responde 201 y eliminar correctamente responde 204 sin cuerpo.
 
-## Pruebas
+## CORS y HTTPS
 
-```bash
-npm test
-```
+`CORS_ORIGINS` contiene orígenes explícitos separados por comas. No admite
+comodines, rutas ni credenciales en los orígenes. Las peticiones admiten
+Authorization y Content-Type, sin cookies de autenticación.
+En producción se activa `APP_ENV=production` y se requieren orígenes HTTPS.
+La guía [HTTPS](docs/HTTPS.md) incluye el proxy TLS, certificados, HSTS
+y la configuración de encabezados reenviados.
 
-Las pruebas levantan servidores en puertos temporales y usan repositorios aislados en memoria, por lo que no alteran `data/incidentes.json`.
+## Verificación a cargo del estudiante
+
+No se han ejecutado pruebas ni generado evidencias en esta modificación.
+Las suites heredadas en `test/` y `backend/tests/` corresponden a versiones
+anteriores y requieren adaptación a la autenticación y a una base de pruebas
+aislada antes de ejecutarse. La suite de Node depende del servidor eliminado.
+No ejecutar pruebas de creación o eliminación sobre datos de uso real.
+
+Casos para registrar con solicitudes, respuestas y capturas propias:
+
+| Caso | Resultado esperado |
+|---|---|
+| Login válido | 200 y token |
+| Crear como analista | 201 |
+| Consultar como lector | 200 |
+| Actualizar como analista | 200 y cambios guardados |
+| Eliminar como administrador | 204 y consulta posterior 404 |
+| Consultar sin token | 401 |
+| Crear como lector o eliminar como analista | 403 |
+| Prioridad inválida, fecha futura o descripción corta | 400 |
+| JWT alterado o vencido | 401 |
+| PATCH con descripción nula o campo desconocido | 400 |
+
+El informe de 800 a 1000 palabras y los resultados observados se preparan después
+de realizar estas verificaciones. No incluir contraseñas, claves o JWT completos
+en las evidencias.

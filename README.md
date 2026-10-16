@@ -4,13 +4,24 @@ Aplicación académica con HTML, CSS y JavaScript modular, API FastAPI, PostgreS
 mediante SQLAlchemy y archivos en Supabase Storage. FastAPI entrega la interfaz
 y la API desde el mismo origen.
 
+El frontend separa vista (`js/view.js`), controlador (`js/controller.js`),
+modelo HTTP y estado (`js/model.js`) y reglas puras (`js/rules.js`). El backend
+separa rutas, servicios, repositorios y modelos SQLAlchemy.
+
+## Requisitos
+
+- Python 3.14 y Node.js 22 para la configuración comprobada en la Semana 7.
+- PostgreSQL para ejecutar la plataforma; Supabase Storage para evidencias.
+- Node.js se usa solo en `quality/` para Jest y ESLint, nunca como servidor.
+
 ## Preparación en Windows
 
 Desde la raíz del proyecto, con Python compatible con las dependencias:
 
 ```powershell
-python -m venv .venv
+py -3.14 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
+npm install --prefix quality
 ```
 
 Si todavía no existe `backend/.env`, copiar `backend/.env.example` a ese nombre.
@@ -48,6 +59,9 @@ Nunca colocar claves de Supabase en JavaScript.
 ## Organización
 
 - `index.html`, `css/`, `js/`: interfaz y separación modelo, vista y controlador.
+- `quality/`: pruebas unitarias Jest, cobertura y ESLint del frontend.
+- `backend/tests/`: pruebas pytest sin escritura en servicios reales.
+- `docs/semana7/`: mediciones y evidencia técnica reproducible.
 - `backend/app/routes/`: autenticación, cuentas, incidentes y evidencias.
 - `backend/app/dependencies.py`: verificación del usuario activo y los roles.
 - `backend/app/security.py`: hash PBKDF2-HMAC-SHA256 y JWT.
@@ -118,29 +132,32 @@ En producción se activa `APP_ENV=production` y se requieren orígenes HTTPS.
 La guía [HTTPS](docs/HTTPS.md) incluye el proxy TLS, certificados, HSTS
 y la configuración de encabezados reenviados.
 
-## Verificación a cargo del estudiante
+## Verificación técnica
 
-No se han ejecutado pruebas ni generado evidencias en esta modificación.
-Las suites heredadas en `test/` y `backend/tests/` corresponden a versiones
-anteriores y requieren adaptación a la autenticación y a una base de pruebas
-aislada antes de ejecutarse. La suite de Node depende del servidor eliminado.
-No ejecutar pruebas de creación o eliminación sobre datos de uso real.
+Desde la raíz en Windows:
 
-Casos para registrar con solicitudes, respuestas y capturas propias:
+```powershell
+npm test --prefix quality
+npm run test:coverage --prefix quality
+npm run lint --prefix quality
+$env:PYTHONPATH = 'backend'
+.\.venv\Scripts\python.exe -m pytest -q backend/tests
+.\.venv\Scripts\python.exe -m compileall -q backend/app
+```
 
-| Caso | Resultado esperado |
-|---|---|
-| Login válido | 200 y token |
-| Crear como analista | 201 |
-| Consultar como lector | 200 |
-| Actualizar como analista | 200 y cambios guardados |
-| Eliminar como administrador | 204 y consulta posterior 404 |
-| Consultar sin token | 401 |
-| Crear como lector o eliminar como analista | 403 |
-| Prioridad inválida, fecha futura o descripción corta | 400 |
-| JWT alterado o vencido | 401 |
-| PATCH con descripción nula o campo desconocido | 400 |
+`backend/benchmark_semana7.py` mide tres solicitudes autenticadas `GET
+/api/incidentes` con una transacción PostgreSQL de solo lectura. Requiere un
+usuario activo y la configuración local, pero no imprime tokens ni datos.
+Ejecutarlo con `.\.venv\Scripts\python.exe backend/benchmark_semana7.py`.
+El registro de resultados medidos, defectos y capturas pendientes está en
+[RESULTADOS_TECNICOS.md](docs/semana7/RESULTADOS_TECNICOS.md).
 
-El informe de 800 a 1000 palabras y los resultados observados se preparan después
-de realizar estas verificaciones. No incluir contraseñas, claves o JWT completos
-en las evidencias.
+Las pruebas pytest sustituyen los servicios de escritura por dobles en memoria.
+No ejecutar pruebas de creación o eliminación sobre datos de uso real. La suite
+heredada `test/` pertenece al antiguo servidor Express y no integra la API
+FastAPI; `quality/` contiene las pruebas JavaScript actuales.
+
+Para una comprobación manual, iniciar sesión como cada rol y revisar en Network
+las respuestas de consulta, creación, actualización, borrado y evidencia.
+Consultar sin token debe responder 401, un permiso insuficiente 403 y un dato
+inválido 400. No incluir contraseñas, claves ni JWT completos en las capturas.

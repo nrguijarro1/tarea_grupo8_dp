@@ -132,6 +132,9 @@ En producción se activa `APP_ENV=production` y se requieren orígenes HTTPS.
 La guía [HTTPS](docs/HTTPS.md) incluye el proxy TLS, certificados, HSTS
 y la configuración de encabezados reenviados.
 
+Para desplegar esta aplicación desde GitHub con el `Dockerfile` de la raíz,
+consultar la [guía de Docker y Render](docs/DESPLIEGUE_RENDER.md).
+
 ## Verificación técnica
 
 Desde la raíz en Windows:

@@ -137,12 +137,14 @@ async def proteger_respuesta(request: Request, call_next):
         )
     if request.url.path.startswith("/api/") or request.url.path == "/":
         response.headers["Cache-Control"] = "no-store"
-    if produccion and request.url.scheme == "https":
+    if produccion and (request.url.scheme == "https" or os.getenv("RENDER") == "true"):
         response.headers["Strict-Transport-Security"] = "max-age=31536000"
     return response
 
 
-if produccion:
+# Render termina TLS y redirige HTTP antes de reenviar la solicitud al contenedor.
+# El salto interno llega por HTTP, incluso cuando el navegador usa HTTPS.
+if produccion and os.getenv("RENDER") != "true":
     app.add_middleware(HTTPSRedirectMiddleware)
 
 app.add_middleware(

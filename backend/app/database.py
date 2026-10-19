@@ -41,6 +41,7 @@ engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
     hide_parameters=True,
+    connect_args={"sslmode": os.getenv("DB_SSLMODE", "prefer")},
 )
 
 
